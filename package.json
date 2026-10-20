@@ -1,0 +1,45 @@
+{
+  "name": "pharmacy-management-system",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Offline-first Pharmacy Management & POS desktop application for Egyptian pharmacies",
+  "license": "UNLICENSED",
+  "packageManager": "pnpm@9.7.0",
+  "engines": {
+    "node": ">=20.11.0"
+  },
+  "scripts": {
+    "db:start": "node scripts/pg-dev.mjs start",
+    "db:stop": "node scripts/pg-dev.mjs stop",
+    "db:status": "node scripts/pg-dev.mjs status",
+    "db:generate": "pnpm --filter @pharmacy/server db:generate",
+    "db:migrate": "pnpm --filter @pharmacy/server db:migrate",
+    "db:migrate:test": "pnpm --filter @pharmacy/server db:migrate:test",
+    "db:seed": "pnpm --filter @pharmacy/server db:seed",
+    "db:reset": "pnpm --filter @pharmacy/server db:reset",
+    "bootstrap": "node scripts/setup.mjs",
+    "dev:server": "pnpm --filter @pharmacy/server dev",
+    "dev:desktop": "pnpm --filter @pharmacy/desktop dev",
+    "dev": "concurrently -k -n server,desktop -c cyan,magenta \"pnpm dev:server\" \"pnpm dev:desktop\"",
+    "build": "pnpm build:shared && pnpm --filter @pharmacy/server build && pnpm --filter @pharmacy/desktop build",
+    "build:shared": "pnpm --filter @pharmacy/shared build",
+    "typecheck": "pnpm -r typecheck",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "test": "pnpm build:shared && pnpm -r test",
+    "test:server": "pnpm --filter @pharmacy/server test",
+    "test:desktop": "pnpm --filter @pharmacy/desktop test",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.17.0",
+    "concurrently": "^9.1.2",
+    "eslint": "^9.17.0",
+    "eslint-plugin-react-hooks": "^5.1.0",
+    "globals": "^15.14.0",
+    "prettier": "^3.4.2",
+    "typescript": "^5.7.3",
+    "typescript-eslint": "^8.19.0"
+  }
+}

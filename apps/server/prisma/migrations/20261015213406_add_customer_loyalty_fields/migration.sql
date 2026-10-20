@@ -1,0 +1,4 @@
+-- AlterTable
+ALTER TABLE "customers" ADD COLUMN     "creditLimit" DECIMAL(14,2) NOT NULL DEFAULT 0,
+ADD COLUMN     "currentBalance" DECIMAL(14,2) NOT NULL DEFAULT 0,
+ADD COLUMN     "loyaltyPoints" INTEGER NOT NULL DEFAULT 0;

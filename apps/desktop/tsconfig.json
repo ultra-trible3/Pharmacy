@@ -1,0 +1,34 @@
+{
+  "compilerOptions": {
+    "target": "ES2020",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "esModuleInterop": true,
+    "resolveJsonModule": true,
+    "skipLibCheck": true,
+    "isolatedModules": true,
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "baseUrl": ".",
+    "paths": {
+      "@/ui/*": ["src/renderer/components/ui/*"],
+      "@/lib/*": ["src/renderer/lib/*"],
+      "@/pages/*": ["src/renderer/pages/*"],
+      "@/components/*": ["src/renderer/components/*"],
+      "@/i18n/*": ["src/renderer/i18n/*"],
+      "@/store/*": ["src/renderer/store/*"],
+      "@/utils/*": ["src/renderer/utils/*"]
+    },
+    "jsx": "react-jsx",
+    "plugins": [
+      {
+        "name": "typescript/react",
+        "length": 1
+      }
+    ],
+    "types": ["vite/client"]
+  },
+  "include": ["src/**/*", "src/**/**/*"],
+  "exclude": ["node_modules", "dist"]
+}

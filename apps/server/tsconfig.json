@@ -1,0 +1,16 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "rootDir": "./src",
+    "outDir": "./dist",
+    "types": ["node"],
+    "noEmit": true,
+    // The server is bundled by tsup and never ships .d.ts files. Emitting
+    // declarations under pnpm's nested node_modules layout makes tsc unable to
+    // name inferred Express types portably (TS2742).
+    "declaration": false,
+    "declarationMap": false
+  },
+  "include": ["src/**/*.ts", "src/**/*.d.ts"],
+  "exclude": ["node_modules", "dist", "tests"]
+}

@@ -1,0 +1,41 @@
+# dependencies
+node_modules/
+.pnpm-store/
+
+# build output
+dist/
+out/
+build/
+release/
+.vite/
+*.tsbuildinfo
+
+# environment / secrets
+.env
+.env.local
+.env.*.local
+
+# local dev infrastructure (project-local PostgreSQL data dir)
+.dev/
+!.dev/.gitkeep
+
+# logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+
+# test artifacts
+coverage/
+test-results/
+playwright-report/
+*.junit.xml
+
+# editor / os
+.vscode/*
+!.vscode/extensions.json
+.idea/
+.DS_Store
+Thumbs.db
+
+# prisma
+apps/server/prisma/migrations/dev.db*

@@ -1,0 +1,338 @@
+management : 
+ - Dashboard         ✅ 
+ - POS / Cashier     ✅
+
+المخزون و المشتريات 
+  - ادارة الادوية 
+  - المخزون 
+  - الموردون 
+  - ادارة المشتريات 
+  - الفئات 
+ 
+المبيعات و العملاء 
+ - العملاء 
+ - ديون العملاء 
+ - المبيعات 
+ - الفواتير 
+ - المرتجعات 
+
+النظام 
+- التقارير 
+- المصروفات 
+- ادارة الوردية 
+- سجل النشاط 
+- الاعدادات 
+
+
+Task: Implement a Complete Administration & Role-Based Access Control (RBAC) System for My Pharmacy Management System
+
+Act as a senior full-stack developer and software architect. First inspect my existing codebase, identify the framework, database, authentication system, routing structure, UI components, and current permission logic. Then implement a production-ready Administration module that integrates with the existing project.
+
+Important: Do not rebuild the application from scratch. Preserve the existing architecture, coding conventions, UI design, functionality, and database structure wherever possible. Do not replace working features with mock data.
+
+1. Administration Module
+
+Create a complete Administration section with the following pages:
+
+Administration Dashboard
+Users Management
+Roles Management
+Permissions Management
+Activity Log
+System Settings
+
+Use the existing application's navigation, styling, language, layout, and component library.
+
+2. Role Levels
+
+Create the following default roles:
+
+Level 1 — Super Admin
+Full access to all modules and permissions.
+Manage users, roles, and permissions.
+Manage system settings.
+View all activity logs.
+Cannot accidentally remove or disable the last active Super Admin account.
+Level 2 — Pharmacy Manager
+Manage day-to-day pharmacy operations.
+Access dashboard, products, inventory, suppliers, purchases, customers, sales, invoices, returns, expenses, reports, customer debts, and shift management.
+Manage operational users only if explicitly permitted.
+Cannot modify Super Admin permissions or critical system settings without authorization.
+Level 3 — Pharmacist / Cashier
+Access POS / Cashier, Sales, Invoices, and permitted Customer functions.
+Search and view products and stock availability.
+Create sales and print invoices.
+Apply discounts only within the authorized limit.
+Process returns, cancel sales, and modify invoices only when explicitly authorized.
+Open and close their own shifts when permitted.
+Cannot access confidential financial reports or system administration by default.
+Level 4 — Inventory / Storekeeper
+Manage products and categories.
+Access inventory, suppliers, and purchases.
+Record received stock and authorized stock adjustments.
+Perform inventory counts and monitor stock levels.
+Cannot approve their own restricted adjustments or access sensitive financial information unless authorized.
+Level 5 — Accountant / Auditor
+Access financial reports, invoices, expenses, customer debts, and sales/purchase records as authorized.
+Review payments, outstanding balances, and financial transactions.
+View audit logs when permitted.
+Default to read-only access for operational records.
+Cannot alter completed sales or stock records unless explicitly authorized.
+
+Roles must be configurable. These levels are default role templates, not hardcoded restrictions. Allow authorized administrators to create additional roles and customize permissions.
+
+3. Existing Application Modules
+
+Implement granular permissions for these exact modules:
+
+Dashboard
+POS / Cashier
+Products
+Inventory
+Suppliers
+Purchases
+Categories
+Customers
+Customers Debts
+Sales
+Invoices
+Returns
+Reports
+Expenses
+Shift Management
+Activity Log
+Settings
+
+Use consistent permission identifiers, such as:
+
+dashboard.view
+pos.access
+pos.create_sale
+pos.apply_discount
+pos.void_sale
+products.view
+products.create
+products.update
+products.delete
+inventory.view
+inventory.adjust
+inventory.count
+purchases.view
+purchases.create
+purchases.update
+purchases.approve
+sales.view
+sales.create
+sales.cancel
+invoices.view
+invoices.print
+returns.create
+returns.approve
+expenses.create
+expenses.approve
+debts.view
+debts.collect_payment
+reports.view
+shifts.open
+shifts.close
+activity_log.view
+users.manage
+roles.manage
+permissions.manage
+settings.manage
+
+Add the appropriate view, create, update, delete, approve, and other action-specific permissions for every module where relevant.
+
+Avoid generating meaningless permissions for read-only modules. Follow the existing project's naming conventions if they already exist.
+
+4. Roles & Permissions UI
+
+Build a professional Roles Management interface.
+
+Features:
+
+Display roles in a searchable, sortable table.
+Create, edit, duplicate, and delete custom roles, subject to authorization.
+Display role name, level, description, number of assigned users, and status.
+Prevent deleting system-protected roles when doing so would compromise access.
+Provide a role details page or modal.
+Provide a permissions matrix grouped by module.
+
+The permissions matrix should include columns such as:
+
+Module | View | Create | Edit | Delete | Approve | Special Permissions
+
+Requirements:
+
+Support selecting individual permissions.
+Support selecting or clearing all permissions for a module.
+Provide a select-all option for authorized administrators.
+Show special permissions such as discount limits, returns approval, stock adjustments, debt write-offs, and shift overrides.
+Show a clear summary of the selected permissions.
+Ask for confirmation before saving significant permission changes.
+Display loading, empty, success, and error states.
+Ensure the UI remains usable on desktop and mobile.
+5. Users Management
+
+Implement:
+
+User list with search, filters, pagination, and status.
+Create and edit users.
+Assign one or more roles only if the existing authorization model supports this safely.
+Activate and deactivate accounts.
+Reset credentials using the existing secure authentication mechanism.
+View the user's assigned role and permitted actions.
+Prevent unauthorized users from escalating their own privileges.
+Prevent deactivation or demotion of the last active Super Admin.
+Record security-sensitive user changes in the Activity Log.
+
+Do not expose passwords, password hashes, authentication tokens, or other secrets.
+
+6. Enforce Permissions Throughout the Application
+
+This is the most important requirement.
+
+Implement real authorization, not just hidden UI elements.
+
+Protect frontend routes and navigation based on permissions.
+Hide or disable unauthorized buttons and actions.
+Enforce every permission on the backend or server-side API before executing the action.
+Deny access by default when permissions are missing or cannot be verified.
+Return appropriate unauthorized or forbidden responses.
+Validate permissions for direct API requests, not only UI navigation.
+Prevent users from changing their own roles or granting themselves additional permissions.
+Ensure permission checks apply to create, update, delete, approval, export, and other sensitive operations.
+Keep authentication separate from authorization.
+Reuse the project's existing authentication and session management.
+Avoid trusting role names, permission lists, or user IDs supplied by the client.
+
+If the project uses server-rendered pages or server actions instead of a separate backend API, enforce authorization at those server-side entry points.
+
+7. Activity Log / Audit Trail
+
+Record important administrative and business operations, including:
+
+Login and logout events when supported by the existing authentication system.
+User creation, updates, activation, and deactivation.
+Role and permission changes.
+Sensitive settings changes.
+Sales cancellation and return approvals.
+Stock adjustments.
+Purchase approvals.
+Expense approvals.
+Debt write-offs and other sensitive financial changes.
+
+Each audit record should include, where available:
+
+Actor user ID.
+Action.
+Entity type and entity ID.
+Timestamp.
+Success or failure status when appropriate.
+Relevant before-and-after values for authorized audit purposes.
+Request correlation ID and source IP when safely available.
+
+Never store passwords, tokens, payment credentials, or unnecessary sensitive customer data in logs. Prevent ordinary users from modifying or deleting audit records. Protect audit data against tampering.
+
+8. Database and Migrations
+
+Inspect the existing database before making changes.
+
+Implement an appropriate schema for:
+
+Users, if not already present.
+Roles.
+Permissions.
+Role-permission relationships.
+User-role relationships, if needed.
+Activity logs.
+
+Use the existing ORM, database, migration system, and naming conventions.
+
+Requirements:
+
+Add safe, reversible migrations where supported.
+Preserve existing users and business data.
+Seed the five default roles and their permission templates.
+Make seed operations idempotent.
+Never overwrite existing customized permissions during ordinary application startup.
+Do not automatically grant Super Admin access to arbitrary users.
+Provide a safe, documented initial Super Admin provisioning procedure.
+Add appropriate indexes and foreign-key constraints.
+
+Do not assume a specific database or ORM. Detect and use the technologies already installed.
+
+9. Security Requirements
+Follow the principle of least privilege.
+Protect against privilege escalation and insecure direct object references.
+Validate all inputs on the server.
+Use transactions for critical role and permission updates.
+Prevent unauthorized self-escalation.
+Preserve access to at least one active Super Admin.
+Use secure error handling without leaking sensitive implementation details.
+Consider concurrent permission changes and session invalidation.
+Ensure cached permissions cannot continue granting access after a role is revoked.
+If the application supports multiple pharmacy branches, enforce branch-level data access in addition to module permissions.
+Do not implement fake security using frontend-only checks.
+10. Testing
+
+Add tests using the testing framework already present in the project.
+
+Cover:
+
+Each default role's access restrictions.
+Authorized and unauthorized API or server-side actions.
+Direct URL access to protected pages.
+Permission changes taking effect correctly.
+Attempts to escalate privileges.
+Attempts to delete or deactivate the last Super Admin.
+Existing user compatibility after migration.
+Audit log creation for sensitive operations.
+Branch isolation if multi-branch support exists.
+
+Run the relevant tests, linting, type checks, and build commands when available. Fix regressions introduced by your changes.
+
+11. Implementation Workflow
+
+Follow this sequence:
+
+Inspect the codebase and summarize the existing architecture.
+Identify authentication, user models, database schema, routing, and existing permission mechanisms.
+Present a short implementation plan based on the actual project.
+Implement database migrations and safe default-role seeding.
+Implement backend authorization and permission helpers.
+Implement the Administration UI.
+Integrate permission enforcement into all existing modules.
+Add audit logging and security protections.
+Add and run tests.
+Run available lint, type-check, and build commands.
+Summarize modified files, migrations, created features, test results, and any remaining limitations.
+Final Acceptance Criteria
+
+The implementation is complete only when:
+
+Administrators can manage users, roles, and permissions.
+The permission matrix works and persists changes to the database.
+All 17 existing modules respect the assigned permissions.
+Backend operations reject unauthorized requests.
+Existing business data and functionality remain intact.
+The default roles are seeded safely.
+Sensitive actions are auditable.
+The application builds successfully, and relevant tests pass.
+
+Start by inspecting the existing codebase. Make changes directly in the project rather than returning only code examples or a theoretical implementation. Do not claim a feature is complete unless it has actually been implemented and verified.
+
+
+
+Settings Page is not with good design i need to make that more professional and userFriendly and dont need the emojees i need icons
+
+
+accountant
+inventory
+cashier	
+pharmacist
+manager
+owner
+
+Pharma@2024
+

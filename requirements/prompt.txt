@@ -1,0 +1,630 @@
+MASTER PROJECT PROMPT — PROFESSIONAL PHARMACY MANAGEMENT & POS SYSTEM
+1. Your Role
+
+Act as a Principal Software Architect, Senior Full-Stack TypeScript Engineer, Electron Desktop Engineer, Database Architect, QA Engineer, and UI/UX Designer.
+
+Your mission is to design, implement, test, and document a production-oriented Pharmacy Management and Point of Sale (POS) desktop application.
+
+Do not build only a demo, static UI, landing page, or collection of disconnected CRUD screens.
+
+Build a coherent, functional application with real database persistence, business logic, validation, error handling, hardware integration adapters, automated tests, and deployment documentation.
+
+Work incrementally. Inspect the existing repository first, create an implementation plan, and then implement the application in small, verifiable phases.
+
+Do not claim a feature is complete unless its implementation and relevant tests exist. Never fake hardware access, successful printing, barcode scanning, database persistence, or completed sales.
+
+2. Business Context
+
+The application manages one pharmacy business with:
+
+One or more checkout terminals.
+One central server and shared PostgreSQL database.
+A local area network (LAN).
+Offline operation without an internet connection after installation.
+Arabic-first RTL user interface, with optional English localization.
+Egyptian pharmacy workflows, configurable EGP currency, and local date/time settings.
+Support for barcode scanners, thermal receipt printers, cash drawers, and A4 printers.
+Reliable inventory tracking by product batch, lot number, and expiration date.
+
+The architecture must support multiple cashiers using the same database concurrently.
+
+The server is the authoritative source for sales, stock quantities, pricing rules, permissions, and financial transactions.
+
+Do not make cloud access or an external API mandatory for ordinary local sales.
+
+3. Technology Stack
+
+Use the following stack unless an existing repository requires a documented, justified adjustment.
+
+Desktop:
+
+Electron.
+React.
+TypeScript in strict mode.
+Vite.
+Electron Forge or another well-maintained packaging solution compatible with the selected Electron setup.
+Secure Electron main/preload/renderer separation.
+
+Backend:
+
+Node.js LTS.
+NestJS.
+REST API with OpenAPI/Swagger documentation.
+WebSocket notifications when appropriate.
+Server-side authentication, authorization, validation, and business rules.
+
+Database:
+
+PostgreSQL.
+Prisma ORM.
+Version-controlled schema migrations.
+Transaction-safe sales and stock operations.
+Database constraints, indexes, and foreign keys.
+
+Frontend:
+
+Tailwind CSS.
+shadcn/ui or equivalent accessible components.
+TanStack Query.
+Zustand where shared client-side state is necessary.
+React Hook Form.
+Zod schemas.
+A maintained table/grid component suitable for large inventory datasets.
+
+Testing:
+
+Vitest or Jest as appropriate.
+React Testing Library.
+NestJS integration tests.
+Playwright or an appropriate Electron end-to-end testing setup.
+Hardware adapter tests using mocks, clearly separated from real-device tests.
+
+Use a pnpm workspace or another documented monorepo arrangement.
+
+Pin compatible package versions and commit the lockfile.
+
+4. Architecture
+
+Organize the repository into clearly separated applications and shared packages.
+
+Suggested structure:
+
+apps/ desktop/ src/ main/ preload/ renderer/ app/ components/ features/ layouts/ pages/ hooks/ lib/ i18n/ tests/ server/ src/ auth/ users/ roles/ products/ categories/ manufacturers/ suppliers/ customers/ inventory/ batches/ purchasing/ sales/ returns/ payments/ cash-register/ expenses/ reports/ barcode/ printing/ audit/ backup/ settings/ health/ prisma/ test/
+
+packages/ shared-types/ validation/ eslint-config/ tsconfig/
+
+docs/ architecture.md database-schema.md hardware-setup.md installation.md backup-and-restore.md user-manual.md security.md implementation-status.md
+
+Use a modular monolith for the backend. Avoid microservices unless a demonstrated requirement justifies them.
+
+Separate domain logic, application services, persistence, API controllers, and infrastructure adapters.
+
+Keep the Electron renderer isolated from privileged operating-system APIs. Enable context isolation and sandboxing, disable Node integration in the renderer, and expose only narrowly scoped, validated IPC methods through preload.
+
+Never expose unrestricted filesystem, shell, process, or Node.js APIs to the renderer.
+
+5. Authentication and Authorization
+
+Implement:
+
+User login and logout.
+Secure password hashing with Argon2id or an appropriately configured alternative.
+Role-based access control.
+Roles such as Owner, Manager, Pharmacist, Cashier, Inventory Clerk, and Accountant.
+Fine-grained permissions for viewing, creating, editing, deleting, refunding, discounting, adjusting inventory, opening the cash drawer, viewing costs, and accessing reports.
+Session expiration and revocation.
+Failed-login throttling and appropriate audit records.
+PIN-based cashier workflows only if implemented securely.
+Server-side authorization for every protected operation.
+
+The frontend may hide unauthorized actions, but backend enforcement is mandatory.
+
+Never store plaintext passwords or privileged database credentials in renderer code.
+
+6. Dashboard
+
+Create a professional dashboard showing:
+
+Today's sales.
+Number of invoices.
+Gross sales and net sales.
+Purchase totals.
+Estimated profit based on a documented costing method.
+Cash, card, and other payment totals.
+Low-stock products.
+Near-expiry and expired batches.
+Recent sales and stock movements.
+Current cashier shift status.
+Important warnings and pending tasks.
+
+All figures must come from real database queries. Support date filters and appropriate permission checks.
+
+7. Product and Medicine Catalog
+
+Implement complete product management.
+
+Fields should include:
+
+Internal product ID and SKU.
+Product name in Arabic and English where needed.
+Brand, manufacturer, and category.
+Active ingredient when applicable.
+Barcode and alternate barcodes.
+Dosage form, strength, pack size, and units.
+Purchase cost and sale price.
+Configurable tax fields when applicable.
+Minimum stock threshold.
+Supplier associations.
+Prescription-required and controlled-product flags where legally applicable.
+Active/inactive status.
+Product image where useful.
+Created/updated timestamps and audit metadata.
+
+Support:
+
+Create, edit, archive, search, filter, and paginate products.
+Duplicate barcode validation.
+Import products from validated CSV/XLSX templates.
+Export authorized product data.
+Bulk price updates with confirmation and audit logging.
+Product variants and alternative package sizes.
+Unit conversions only when explicitly configured and validated.
+Fast keyboard-driven product search.
+
+Do not assume all medicines have the same tax treatment or regulatory status.
+
+8. Barcode Management
+
+Implement real barcode functionality.
+
+Requirements:
+
+USB HID barcode scanners that behave like keyboard input.
+Scanner configuration for suffixes and supported symbologies where possible.
+Fast barcode lookup in the POS.
+Manual barcode entry and duplicate detection.
+Multiple barcodes per product when necessary.
+Barcode label generation for products that do not already have suitable barcodes.
+Configurable label size, margins, quantity, product name, and displayed price.
+Support common formats such as EAN-13 and Code 128 where appropriate.
+Generate valid check digits when required.
+Use a maintained barcode library.
+Provide print preview and actual label printing.
+Validate barcode data before saving or printing.
+
+Do not generate arbitrary barcodes that could conflict with official retail identifiers. Clearly distinguish internal labels from official manufacturer barcodes.
+
+Test generated barcode images and verify their encoded content using decoding tests.
+
+9. Point of Sale (POS)
+
+Build a fast, keyboard-friendly checkout screen.
+
+Required capabilities:
+
+Scan barcode and add the matching product to the cart.
+Search products by Arabic/English name, SKU, or barcode.
+Support multiple items in a single sale.
+Edit quantities, remove items, and apply authorized discounts.
+Show available stock and applicable batch/expiry information.
+Calculate line totals, invoice totals, discounts, taxes where applicable, and change due.
+Support configurable payment methods: cash, card, and other locally available methods.
+Support split payments when appropriate.
+Handle suspended and resumed carts.
+Hold and retrieve pending sales.
+Handle returns and refunds according to permissions.
+Print and reprint receipts with audit logging.
+Support configurable receipt templates and Arabic RTL printing.
+Provide clear loading, success, validation, and failure states.
+Protect against accidental double submission.
+Preserve a recoverable checkout state after a temporary network interruption, without falsely marking a sale as completed.
+
+The backend must revalidate prices, permissions, discounts, and stock at checkout time.
+
+The final sale must be processed atomically. A sale must not be partially saved.
+
+Use database transactions, appropriate locking or conditional updates, and idempotency keys to prevent duplicate invoices and overselling during concurrent checkout.
+
+Assign unique invoice numbers safely under concurrent usage.
+
+Document the exact behavior when payment authorization, stock deduction, invoice persistence, or printing fails.
+
+Printing failure after a committed sale must not create a duplicate sale when the cashier retries printing.
+
+10. Inventory and Warehouses
+
+Implement:
+
+One default warehouse and support for additional warehouses.
+Stock by product, warehouse, and batch.
+Lot/batch number.
+Manufacturing date where available.
+Expiration date.
+Purchase cost per batch.
+Received quantity, available quantity, reserved quantity if applicable, and damaged/expired quantity.
+Stock receipts.
+Stock adjustments with reasons.
+Stock transfers between warehouses.
+Stock counts and reconciliation.
+Returns to supplier.
+Customer returns.
+Damaged and expired stock handling.
+Low-stock alerts.
+Near-expiry alerts.
+Inventory valuation.
+Full stock movement history.
+Authorized correction workflows.
+
+Use FEFO (First Expired, First Out) as the default batch-selection policy when appropriate.
+
+Never silently delete inventory history.
+
+Expired batches must not be sold by default. Any exception must be governed by explicit legal and business rules rather than an unrestricted override.
+
+Record each inventory movement with product, batch, warehouse, quantity delta, movement type, timestamp, reference document, user, and reason.
+
+Use a documented costing strategy, such as weighted average or batch-based cost, and apply it consistently in profit reports.
+
+11. Purchasing and Suppliers
+
+Implement:
+
+Supplier directory and contact details.
+Purchase orders where needed.
+Purchase invoices.
+Purchase invoice items.
+Batch, expiration, quantity, and cost entry.
+Partial receiving.
+Supplier balances and payment records.
+Purchase returns and supplier credit notes.
+Supplier transaction history.
+Purchase price history.
+Outstanding payable reports.
+Import of product catalogs from supplier files where practical.
+
+Receiving a purchase must update inventory and create appropriate batch and stock-movement records in a transaction.
+
+Do not mark a purchase as paid unless a corresponding payment record exists.
+
+12. Customers and Sales History
+
+Support optional customer records with:
+
+Name and contact details.
+Purchase history subject to permissions.
+Customer balances only if a properly controlled credit-sale module is implemented.
+Returns and refunds.
+Search and filters.
+
+Collect only necessary personal information. Do not create a loyalty, messaging, or medical-history feature without a clear business requirement and appropriate safeguards.
+
+13. Cash Register and Cashier Shifts
+
+Implement:
+
+Opening cash balance.
+Cashier shift opening and closing.
+Cash sales, cash refunds, paid-in, and paid-out movements.
+Expected cash calculation.
+Actual cash count.
+Cash variance and explanation.
+Shift summary.
+Payment reconciliation.
+Manager approval for sensitive adjustments.
+Audit trail for every financial movement.
+
+Do not assume card transactions have settled simply because the local application recorded a card payment.
+
+Represent the distinction between locally recorded payments and payments verified by an external payment terminal.
+
+14. Hardware Integration
+
+Create explicit hardware adapter interfaces and separate them from business logic.
+
+A. Barcode scanners:
+
+Support common USB HID keyboard-wedge scanners.
+Detect scan completion using configurable suffixes or timing.
+Avoid treating ordinary typing as a scan without suitable detection rules.
+Support real scanner testing and a manual-entry fallback.
+
+B. Receipt printers:
+
+Support compatible thermal printers.
+Prefer documented ESC/POS-compatible adapters where appropriate.
+Support USB, shared Windows printers, and network printers according to the chosen implementation.
+Support Arabic RTL receipts, configurable paper width, logo, invoice number, totals, payment details, and QR/barcode elements when needed.
+Include test-print and connection-status workflows.
+
+C. Cash drawers:
+
+Support drawers connected through a compatible receipt printer's drawer-kick interface or another explicitly supported interface.
+Open only after an authorized, policy-compliant action.
+Default to opening after a successful cash sale where configured.
+Require explicit permissions for manual opening.
+Audit manual drawer-opening actions.
+Never report successful physical opening unless the hardware or driver provides a reliable acknowledgment. Many drawers have no sensor confirming their state.
+
+D. A4 printers:
+
+Support Windows-installed printers and appropriate print-dialog workflows.
+Print reports, purchase documents, stock counts, and other supported documents.
+
+E. Device management:
+
+Create a hardware settings page.
+Configure printer selection, paper width, receipt copies, barcode settings, and drawer behavior.
+Provide diagnostic and test-print buttons.
+Log errors without exposing secrets.
+Use mocks for development and tests.
+Clearly label simulated devices as simulations.
+Document real-device compatibility and limitations.
+
+Use Electron's secure IPC or suitable Node.js hardware adapters. Do not attempt to access arbitrary device paths from the renderer.
+
+15. Reports and Analytics
+
+Implement reports with date-range filters and permission controls:
+
+Daily, weekly, and monthly sales.
+Sales by cashier, product, category, and payment method.
+Gross revenue and net sales.
+Profit estimates and costing assumptions.
+Purchase reports.
+Inventory valuation.
+Low-stock products.
+Near-expiry and expired stock.
+Fast-moving and slow-moving products.
+Returns, refunds, and discounts.
+Cashier shift reports.
+Supplier balances.
+Stock movements and adjustment history.
+Audit log reports.
+
+Support export to CSV and Excel-compatible formats. Support printable PDF or A4 reports using a maintained library or reliable print workflow.
+
+Do not use sample numbers in production dashboards. Clearly label demo data if included.
+
+16. Expenses and Financial Records
+
+Implement a controlled expenses module with:
+
+Expense categories.
+Expense date and amount.
+Payment method.
+Description and optional attachment reference.
+User and approval metadata.
+Audit history.
+Date-filtered expense reports.
+
+Keep operational expenses separate from sales and purchases. Do not claim to provide full accounting or tax compliance unless those workflows have been explicitly implemented and verified.
+
+17. Notifications and Alerts
+
+Implement alerts for:
+
+Low stock.
+Near-expiry products.
+Expired batches.
+Large discounts.
+Unusual stock adjustments.
+Cash discrepancies.
+Failed backups.
+Server/database connectivity problems.
+
+Allow authorized users to configure thresholds and notification preferences.
+
+Notifications must be based on actual data and should not block checkout unnecessarily.
+
+18. Settings
+
+Create settings pages for:
+
+Pharmacy name, address, contact information, and logo.
+Currency and locale.
+Invoice numbering.
+Receipt templates.
+Taxes where applicable.
+Discount policies.
+Product and inventory rules.
+Expiry warning thresholds.
+Printer and scanner settings.
+Cash drawer rules.
+User roles and permissions.
+Backup schedule and destination.
+Network/server configuration.
+Language and appearance.
+Audit retention and operational preferences.
+
+Validate settings and require suitable authorization for sensitive changes.
+
+19. Backup and Recovery
+
+Implement a reliable backup and restore workflow.
+
+Requirements:
+
+Configurable scheduled backups.
+Manual backup.
+Backup status and error reporting.
+Versioned backup metadata.
+Restore preview and explicit confirmation.
+Validation of backup integrity.
+Documented disaster recovery.
+Protection against accidental overwrite.
+Separate backup storage from the main database device.
+Tested restore procedures.
+
+Use supported PostgreSQL backup tools or a validated database-backup strategy. Do not copy live database files blindly.
+
+Do not upload pharmacy data to external services by default.
+
+20. Database and Data Integrity
+
+Design a normalized PostgreSQL schema with proper foreign keys, constraints, indexes, and timestamps.
+
+Use appropriate monetary precision such as PostgreSQL NUMERIC and a consistent application representation. Never rely on floating-point arithmetic for financial calculations.
+
+Use database transactions for:
+
+Sales and sale items.
+Stock deductions.
+Purchase receiving.
+Returns and refunds.
+Cash movements.
+Inventory adjustments.
+
+Use optimistic or pessimistic concurrency controls as appropriate.
+
+Preserve immutable historical transaction details, including the product name, price, quantity, and cost basis needed to reproduce past invoices and reports.
+
+Use soft deletion or archival for master data where appropriate. Never cascade-delete completed financial transactions.
+
+Provide migrations and a documented seed process. Seed accounts must be development-only or require secure initial setup; never ship a well-known default production password.
+
+21. User Interface and UX
+
+Build a professional pharmacy-oriented desktop interface.
+
+Requirements:
+
+Arabic-first RTL.
+Optional English LTR.
+Consistent typography and spacing.
+Professional light theme and optional dark theme.
+Responsive layouts for supported desktop sizes.
+Sidebar navigation with clear module grouping.
+Fast global search.
+Data tables with sorting, filtering, pagination, and keyboard navigation.
+Accessible forms and validation.
+Loading, empty, error, and success states.
+Confirmation dialogs for destructive or sensitive actions.
+Keyboard shortcuts for common POS operations.
+Large, easy-to-read totals and payment controls.
+Minimize unnecessary dialogs during checkout.
+Avoid excessive animations and decorative elements that slow down cashiers.
+
+Use realistic but clearly identified development fixtures only.
+
+Do not use dead buttons, fake charts, nonfunctional filters, or controls that silently do nothing.
+
+22. Performance
+
+Optimize for practical pharmacy workflows:
+
+Fast barcode lookup.
+Efficient paginated product queries.
+Database indexes for barcode, SKU, product name, batches, invoice number, and transaction dates.
+Avoid loading the entire catalog into memory.
+Use debounced search where appropriate.
+Keep the checkout interface responsive.
+Handle multiple terminals without stock overselling.
+Measure performance using repeatable tests instead of making unsupported speed claims.
+23. Security
+Keep secrets out of source control.
+Use environment variables and secure deployment configuration.
+Restrict database network exposure to authorized local hosts.
+Apply authentication and authorization on the server.
+Validate all API input.
+Use parameterized database operations through Prisma.
+Protect Electron IPC with narrow, validated interfaces.
+Do not allow arbitrary renderer-triggered shell commands.
+Avoid unsafe HTML rendering.
+Log security-relevant events without storing passwords or sensitive payment data.
+Use secure update and signing practices when applicable.
+Provide a threat model and deployment security checklist.
+
+The local network is not automatically trusted. Restrict access and authenticate clients.
+
+24. Testing and Acceptance Criteria
+
+Create tests for:
+
+Product creation and duplicate barcodes.
+Batch and expiry management.
+Barcode lookup.
+Purchase receiving.
+Sales with multiple line items.
+Discounts and payment calculations.
+Cash change calculation.
+Returns and refunds.
+Concurrent sales of the same stock.
+Insufficient inventory.
+Duplicate checkout submissions.
+Transaction rollback after failures.
+Authorization failures.
+Cash drawer permission enforcement.
+Receipt rendering.
+Arabic RTL display and receipt output.
+Backup and restore.
+Server disconnection and recovery.
+Hardware adapter failures.
+
+Run at least one concurrency test proving that two simultaneous sales cannot oversell the same stock.
+
+Separate unit tests, integration tests, and tests requiring actual physical hardware.
+
+Hardware simulation must never be presented as proof that a real printer or drawer works.
+
+25. Development Workflow
+
+Follow this sequence:
+
+Phase 1: Inspect the repository, identify the runtime/tooling, and create:
+
+docs/architecture.md
+docs/implementation-status.md
+docs/database-schema.md
+A prioritized implementation plan with dependencies and acceptance criteria.
+
+Phase 2: Establish the monorepo, linting, formatting, TypeScript configuration, environment validation, and basic CI scripts.
+
+Phase 3: Implement PostgreSQL schema, Prisma migrations, secure initial setup, authentication, users, and roles.
+
+Phase 4: Implement product catalog, categories, suppliers, batches, and inventory movements.
+
+Phase 5: Implement purchasing and stock receiving.
+
+Phase 6: Implement POS, atomic checkout, payments, receipts, returns, and cash register shifts.
+
+Phase 7: Implement hardware adapters, real-device configuration, diagnostics, and integration tests.
+
+Phase 8: Implement reports, expenses, audit logs, settings, and backup/restore.
+
+Phase 9: Implement desktop packaging, server installation, multi-terminal configuration, upgrade procedures, and deployment documentation.
+
+Phase 10: Run tests, type checks, linting, production builds, and acceptance tests. Fix failures rather than hiding them.
+
+After every phase:
+
+Summarize completed work.
+List files and modules created.
+Report tests and commands actually run.
+Identify incomplete functionality and known limitations.
+Update docs/implementation-status.md.
+Continue to the next phase when safe and feasible.
+
+Do not stop after generating a plan if implementation can proceed. If the task is too large for one iteration, complete a working vertical slice first and continue incrementally.
+
+26. Required First Deliverable
+
+Start by inspecting the existing repository and available development tools.
+
+Then create a concrete implementation plan and architecture documents.
+
+After that, implement the first working vertical slice:
+
+Application shell with Arabic RTL navigation.
+Secure Electron configuration.
+NestJS server with health endpoint.
+PostgreSQL connection and Prisma migrations.
+Product CRUD with real persistence.
+Product search by name, SKU, and barcode.
+A basic inventory screen.
+Automated tests for these flows.
+
+Make sure the code compiles and the first vertical slice can be run locally before expanding into all modules.
+
+Do not overwrite existing user work without inspection. Ask before destructive actions or irreversible database changes.
+
+The ultimate goal is a maintainable, reliable, professional pharmacy application with working business workflows and explicitly verified hardware compatibility—not merely a visually impressive prototype.

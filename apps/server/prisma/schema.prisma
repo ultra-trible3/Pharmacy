@@ -1,0 +1,602 @@
+// Prisma schema — Pharmacy Management System
+// Target: PostgreSQL 14+ (NUMERIC for money, strict FKs, search indexes).
+//
+// Conventions:
+//   * table names  -> snake_case plural via @@map
+//   * money        -> Decimal(14, 2) exposed to the API as strings
+//   * quantities   -> Int (whole packs / units)
+//   * dates        -> @db.Date for calendar dates (expiry), timestamptz for events
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ---------------------------------------------------------------------------
+// Enums
+// ---------------------------------------------------------------------------
+
+enum Role {
+  OWNER
+  MANAGER
+  PHARMACIST
+  CASHIER
+  INVENTORY_CLERK
+  ACCOUNTANT
+}
+
+enum DosageForm {
+  TABLET
+  CAPSULE
+  SYRUP
+  SUSPENSION
+  INJECTION
+  CREAM
+  OINTMENT
+  GEL
+  DROPS
+  INHALER
+  SUPPOSITORY
+  SPRAY
+  PATCH
+  SACHET
+  OTHER
+}
+
+enum PrescriptionClass {
+  OTC
+  PRESCRIPTION
+  CONTROLLED
+}
+
+enum MovementType {
+  RECEIPT
+  ISSUE
+  ADJUSTMENT_IN
+  ADJUSTMENT_OUT
+  TRANSFER_IN
+  TRANSFER_OUT
+  RETURN_IN
+  RETURN_OUT
+  COUNT_GAIN
+  COUNT_LOSS
+}
+
+enum SaleStatus {
+  COMPLETED
+  SUSPENDED
+  VOIDED
+}
+
+enum PaymentMethod {
+  CASH
+  CARD
+  WALLET
+  CREDIT
+}
+
+enum ExpenseCategory {
+  RENT
+  SALARY
+  UTILITIES
+  MAINTENANCE
+  MARKETING
+  OTHER
+}
+
+/// Explicit non-sale cash movements recorded against an open shift.
+enum CashMovementType {
+  PAID_IN
+  PAID_OUT
+}
+
+// ---------------------------------------------------------------------------
+// Identity & access
+// ---------------------------------------------------------------------------
+
+model User {
+  id                  String    @id @default(cuid())
+  username            String    @unique
+  email               String?   @unique
+  fullName            String
+  passwordHash        String
+  role                Role      @default(CASHIER)
+  isActive            Boolean   @default(true)
+  mustChangePassword  Boolean   @default(false)
+  failedLoginAttempts Int       @default(0)
+  lockedUntil         DateTime?
+  lastLoginAt         DateTime?
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  sessions          Session[]
+  auditLogs         AuditLog[]
+  stockMovements    StockMovement[]
+  createdProducts   Product[]         @relation("ProductCreatedBy")
+  sales             Sale[]
+  cashDrawers       CashDrawer[]      @relation("CashDrawerOpenedBy")
+  closedCashDrawers CashDrawer[]      @relation("CashDrawerClosedBy")
+  customerPayments  CustomerPayment[]
+  expenses          Expense[]
+  refunds           Refund[]
+  cashMovements     CashMovement[]
+
+  @@index([role])
+  @@index([isActive])
+  @@map("users")
+}
+
+/// Refresh-token backed sessions. Only a SHA-256 hash of the token is stored.
+model Session {
+  id         String    @id @default(cuid())
+  userId     String
+  tokenHash  String    @unique
+  expiresAt  DateTime
+  revokedAt  DateTime?
+  ip         String?
+  userAgent  String?
+  terminalId String?
+  createdAt  DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@map("sessions")
+}
+
+/// Append-only audit trail. Never updated or deleted by the application.
+model AuditLog {
+  id         String   @id @default(cuid())
+  userId     String?
+  action     String
+  entityType String
+  entityId   String?
+  before     Json?
+  after      Json?
+  ip         String?
+  userAgent  String?
+  terminalId String?
+  createdAt  DateTime @default(now())
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([entityType, entityId])
+  @@index([userId])
+  @@index([createdAt])
+  @@index([action])
+  @@map("audit_logs")
+}
+
+// ---------------------------------------------------------------------------
+// Catalogue
+// ---------------------------------------------------------------------------
+
+model Category {
+  id        String   @id @default(cuid())
+  code      String   @unique
+  nameAr    String
+  nameEn    String?
+  parentId  String?
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  parent   Category?  @relation("CategoryTree", fields: [parentId], references: [id], onDelete: SetNull)
+  children Category[] @relation("CategoryTree")
+  products Product[]
+
+  @@index([nameAr])
+  @@map("categories")
+}
+
+model Supplier {
+  id             String   @id @default(cuid())
+  code           String   @unique
+  nameAr         String
+  nameEn         String?
+  phone          String?
+  email          String?
+  address        String?
+  taxNumber      String?
+  openingBalance Decimal  @default(0) @db.Decimal(14, 2)
+  balance        Decimal  @default(0) @db.Decimal(14, 2)
+  isActive       Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  batches Batch[]
+
+  @@index([nameAr])
+  @@map("suppliers")
+}
+
+model Warehouse {
+  id        String   @id @default(cuid())
+  code      String   @unique
+  nameAr    String
+  nameEn    String?
+  address   String?
+  isDefault Boolean  @default(false)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  batches   Batch[]
+  movements StockMovement[]
+  expenses  Expense[]
+
+  @@index([isDefault])
+  @@map("warehouses")
+}
+
+model Product {
+  id                String            @id @default(cuid())
+  sku               String            @unique
+  barcode           String?           @unique
+  altBarcodes       String[]          @default([])
+  nameAr            String
+  nameEn            String?
+  brand             String?
+  manufacturer      String?
+  activeIngredient  String?
+  categoryId        String?
+  dosageForm        DosageForm        @default(OTHER)
+  strength          String?
+  packSize          String?
+  unit              String?
+  costPrice         Decimal           @default(0) @db.Decimal(14, 2)
+  salePrice         Decimal           @db.Decimal(14, 2)
+  taxRate           Decimal           @default(0) @db.Decimal(5, 2)
+  minStock          Int               @default(5)
+  prescriptionClass PrescriptionClass @default(OTC)
+  notes             String?
+  isActive          Boolean           @default(true)
+  /// Set when the product photo is stored/replaced; null when there is none.
+  imageUpdatedAt    DateTime?
+  createdById       String?
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+
+  category  Category?       @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  createdBy User?           @relation("ProductCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  image     ProductImage?
+  batches   Batch[]
+  movements StockMovement[]
+  saleItems SaleItem[]
+
+  @@index([nameAr])
+  @@index([nameEn])
+  @@index([categoryId])
+  @@index([isActive])
+  @@index([prescriptionClass])
+  @@map("products")
+}
+
+/// The product photo, kept out of the product row so catalogue queries never
+/// pull image bytes unless they explicitly include the relation.
+model ProductImage {
+  productId String   @id
+  mimeType  String
+  data      Bytes
+  updatedAt DateTime @updatedAt
+
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@map("product_images")
+}
+
+// ---------------------------------------------------------------------------
+// Inventory
+// ---------------------------------------------------------------------------
+
+/// A physically distinct stock lot in a warehouse. FEFO selects by expiryDate.
+model Batch {
+  id              String    @id @default(cuid())
+  productId       String
+  warehouseId     String
+  supplierId      String?
+  lotNumber       String
+  expiryDate      DateTime  @db.Date
+  manufactureDate DateTime? @db.Date
+  quantity        Int       @default(0)
+  costPrice       Decimal   @default(0) @db.Decimal(14, 2)
+  salePrice       Decimal?  @db.Decimal(14, 2)
+  receivedAt      DateTime  @default(now())
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  product   Product         @relation(fields: [productId], references: [id], onDelete: Restrict)
+  warehouse Warehouse       @relation(fields: [warehouseId], references: [id], onDelete: Restrict)
+  supplier  Supplier?       @relation(fields: [supplierId], references: [id], onDelete: SetNull)
+  movements StockMovement[]
+
+  @@unique([productId, warehouseId, lotNumber, expiryDate])
+  @@index([expiryDate])
+  @@index([productId, expiryDate])
+  @@index([warehouseId])
+  @@map("batches")
+}
+
+/// Immutable stock ledger. `quantity` is signed: positive = inbound.
+model StockMovement {
+  id          String       @id @default(cuid())
+  productId   String
+  batchId     String?
+  warehouseId String
+  type        MovementType
+  quantity    Int
+  unitCost    Decimal?     @db.Decimal(14, 2)
+  reason      String?
+  reference   String?
+  userId      String?
+  createdAt   DateTime     @default(now())
+
+  product   Product   @relation(fields: [productId], references: [id], onDelete: Restrict)
+  batch     Batch?    @relation(fields: [batchId], references: [id], onDelete: SetNull)
+  warehouse Warehouse @relation(fields: [warehouseId], references: [id], onDelete: Restrict)
+  user      User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([productId, createdAt])
+  @@index([batchId])
+  @@index([warehouseId])
+  @@index([type])
+  @@index([createdAt])
+  @@map("stock_movements")
+}
+
+// ---------------------------------------------------------------------------
+// Customers
+// ---------------------------------------------------------------------------
+
+model Customer {
+  id             String   @id @default(cuid())
+  name           String
+  phone          String?  @unique
+  notes          String?
+  loyaltyPoints  Int      @default(0)
+  creditLimit    Decimal  @default(0) @db.Decimal(14, 2)
+  currentBalance Decimal  @default(0) @db.Decimal(14, 2)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  sales    Sale[]
+  payments CustomerPayment[]
+
+  @@index([name])
+  @@map("customers")
+}
+
+/// Money collected from a customer against their outstanding balance (آجل).
+/// Credit sales increase `Customer.currentBalance`; these rows decrease it.
+model CustomerPayment {
+  id         String        @id @default(cuid())
+  customerId String
+  amount     Decimal       @db.Decimal(14, 2)
+  method     PaymentMethod
+  reference  String?
+  note       String?
+  userId     String?
+  /// Shift that collected this payment, when one was open. Null for history.
+  shiftId    String?
+  createdAt  DateTime      @default(now())
+
+  customer Customer    @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  user     User?       @relation(fields: [userId], references: [id], onDelete: SetNull)
+  shift    CashDrawer? @relation(fields: [shiftId], references: [id], onDelete: SetNull)
+
+  @@index([customerId])
+  @@index([createdAt])
+  @@index([shiftId])
+  @@map("customer_payments")
+}
+
+// ---------------------------------------------------------------------------
+// Sales / POS
+// ---------------------------------------------------------------------------
+
+model Sale {
+  id              String     @id @default(cuid())
+  invoiceNumber   String     @unique
+  customerId      String?
+  userId          String
+  warehouseId     String
+  /// Open shift that rang this sale. Null for historical sales and holds.
+  shiftId         String?
+  subtotal        Decimal    @db.Decimal(14, 2)
+  itemDiscount    Decimal    @default(0) @db.Decimal(14, 2)
+  invoiceDiscount Decimal    @default(0) @db.Decimal(14, 2)
+  taxAmount       Decimal    @default(0) @db.Decimal(14, 2)
+  total           Decimal    @db.Decimal(14, 2)
+  pointsUsed      Int        @default(0)
+  status          SaleStatus @default(COMPLETED)
+  note            String?
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+
+  customer Customer?   @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  user     User        @relation(fields: [userId], references: [id], onDelete: Restrict)
+  shift    CashDrawer? @relation(fields: [shiftId], references: [id], onDelete: SetNull)
+  items    SaleItem[]
+  payments Payment[]
+  refunds  Refund[]
+
+  @@index([invoiceNumber])
+  @@index([customerId])
+  @@index([userId])
+  @@index([status])
+  @@index([createdAt])
+  @@index([shiftId])
+  @@map("sales")
+}
+
+model SaleItem {
+  id        String  @id @default(cuid())
+  saleId    String
+  productId String
+  batchId   String?
+  quantity  Int
+  unitPrice Decimal @db.Decimal(14, 2)
+  discount  Decimal @default(0) @db.Decimal(14, 2)
+  lineTotal Decimal @db.Decimal(14, 2)
+
+  sale    Sale    @relation(fields: [saleId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id], onDelete: Restrict)
+
+  @@index([saleId])
+  @@index([productId])
+  @@map("sale_items")
+}
+
+model Payment {
+  id        String        @id @default(cuid())
+  saleId    String
+  method    PaymentMethod
+  amount    Decimal       @db.Decimal(14, 2)
+  reference String?
+  createdAt DateTime      @default(now())
+
+  sale Sale @relation(fields: [saleId], references: [id], onDelete: Cascade)
+
+  @@index([saleId])
+  @@index([method])
+  @@map("payments")
+}
+
+// ---------------------------------------------------------------------------
+// Cash Drawer
+// ---------------------------------------------------------------------------
+
+model CashDrawer {
+  id                    String    @id @default(cuid())
+  userId                String
+  warehouseId           String
+  /// Terminal reported by the client when the shift was opened (optional).
+  terminalId            String?
+  openedAt              DateTime  @default(now())
+  closedAt              DateTime?
+  openingBalance        Decimal   @default(0) @db.Decimal(14, 2)
+  /// Expected closing cash snapshot, frozen when the shift is closed.
+  expectedBalance       Decimal   @default(0) @db.Decimal(14, 2)
+  /// Physically counted cash entered by the cashier at closing.
+  closingBalance        Decimal?  @db.Decimal(14, 2)
+  /// counted cash - expected cash (negative = shortage, positive = overage).
+  variance              Decimal?  @db.Decimal(14, 2)
+  // Reconciliation snapshot (all zero while open; written atomically on close).
+  cashSales             Decimal   @default(0) @db.Decimal(14, 2)
+  cardSales             Decimal   @default(0) @db.Decimal(14, 2)
+  walletSales           Decimal   @default(0) @db.Decimal(14, 2)
+  creditSales           Decimal   @default(0) @db.Decimal(14, 2)
+  customerCashTotal     Decimal   @default(0) @db.Decimal(14, 2)
+  cashRefunds           Decimal   @default(0) @db.Decimal(14, 2)
+  expensesTotal         Decimal   @default(0) @db.Decimal(14, 2)
+  paidInTotal           Decimal   @default(0) @db.Decimal(14, 2)
+  paidOutTotal          Decimal   @default(0) @db.Decimal(14, 2)
+  salesCount            Int       @default(0)
+  voidedSalesCount      Int       @default(0)
+  refundsCount          Int       @default(0)
+  expensesCount         Int       @default(0)
+  customerPaymentsCount Int       @default(0)
+  paidInCount           Int       @default(0)
+  paidOutCount          Int       @default(0)
+  status                String    @default("OPEN")
+  notes                 String?
+  closedById            String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  user             User              @relation("CashDrawerOpenedBy", fields: [userId], references: [id], onDelete: Restrict)
+  closedBy         User?             @relation("CashDrawerClosedBy", fields: [closedById], references: [id], onDelete: SetNull)
+  sales            Sale[]
+  refunds          Refund[]
+  cashMovements    CashMovement[]
+  customerPayments CustomerPayment[]
+  expenses         Expense[]
+
+  @@index([userId])
+  @@index([warehouseId])
+  @@index([terminalId])
+  @@index([status])
+  @@index([openedAt])
+  @@index([closedById])
+  @@map("cash_drawers")
+}
+
+/// Reversal of the payment(s) of a voided sale. Rows are immutable and are
+/// attributed to the shift that paid the refund (which may differ from the
+/// shift that rang the original sale).
+model Refund {
+  id        String        @id @default(cuid())
+  saleId    String
+  shiftId   String?
+  method    PaymentMethod
+  amount    Decimal       @db.Decimal(14, 2)
+  reason    String?
+  userId    String
+  createdAt DateTime      @default(now())
+
+  sale  Sale        @relation(fields: [saleId], references: [id], onDelete: Cascade)
+  shift CashDrawer? @relation(fields: [shiftId], references: [id], onDelete: SetNull)
+  user  User        @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  @@index([saleId])
+  @@index([shiftId])
+  @@index([createdAt])
+  @@map("refunds")
+}
+
+/// Explicit cash paid into or out of the drawer (petty cash, payouts, ...).
+model CashMovement {
+  id        String           @id @default(cuid())
+  shiftId   String
+  type      CashMovementType
+  amount    Decimal          @db.Decimal(14, 2)
+  reason    String
+  userId    String
+  createdAt DateTime         @default(now())
+
+  shift CashDrawer @relation(fields: [shiftId], references: [id], onDelete: Cascade)
+  user  User       @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  @@index([shiftId])
+  @@index([createdAt])
+  @@map("cash_movements")
+}
+
+// ---------------------------------------------------------------------------
+// Expenses
+// ---------------------------------------------------------------------------
+
+/// An operating expense (rent, salary, utilities, etc.) paid out of the till.
+model Expense {
+  id            String          @id @default(cuid())
+  reference     String          @unique
+  category      ExpenseCategory
+  descriptionAr String
+  descriptionEn String?
+  amount        Decimal         @db.Decimal(14, 2)
+  paidAt        DateTime
+  paidById      String
+  warehouseId   String?
+  /// Open shift that paid this expense out of the till, when known.
+  shiftId       String?
+  notes         String?
+  isActive      Boolean         @default(true)
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+
+  paidBy    User        @relation(fields: [paidById], references: [id], onDelete: Restrict)
+  warehouse Warehouse?  @relation(fields: [warehouseId], references: [id], onDelete: SetNull)
+  shift     CashDrawer? @relation(fields: [shiftId], references: [id], onDelete: SetNull)
+
+  @@index([category])
+  @@index([paidAt])
+  @@index([warehouseId])
+  @@index([shiftId])
+  @@index([isActive])
+  @@map("expenses")
+}

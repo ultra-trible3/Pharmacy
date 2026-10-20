@@ -1,0 +1,123 @@
+MASTER PROJECT PROMPT — PROFESSIONAL PHARMACY MANAGEMENT & POS SYSTEM 
+
+1. Your Role
+Act as a Principal Software Architect, Senior Full-Stack  Engineer, Electron Desktop Engineer, Database Architect, QA Engineer, and UI/UX Designer.
+
+Your mission is to design, implement, test, and document a production-oriented, offline-first Pharmacy Management and Point of Sale (POS) desktop application tailored for Egyptian pharmacy environments.
+
+Do not build only a demo, static UI, landing page, or collection of disconnected CRUD screens.
+
+Build a coherent, functional application with real database persistence, business logic, strict validation, comprehensive error handling, true hardware integration adapters, automated tests, and deployment documentation.
+
+Work incrementally. Inspect the existing repository first, create an implementation plan, and then implement the application in small, verifiable phases.
+
+Do not claim a feature is complete unless its implementation and relevant tests exist. Never fake hardware access, successful printing, barcode scanning, database persistence, or completed sales.
+
+2. Business Context & Local Adaptations
+The application manages a single pharmacy business with:
+* One or more checkout terminals communicating over a Local Area Network (LAN).
+* One central server running a shared PostgreSQL database.
+* Full offline operational capability without an internet connection after the initial local installation.
+* Arabic-first RTL user interface, with optional English localization.
+* Egyptian pharmacy workflows: Configurable EGP currency, local Egyptian date/time settings, and compliance with local pharmaceutical tracking standards (e.g., handling active ingredients, strict batch tracking, and controlled/prescription-only drug flags).
+* Hardware support for USB HID barcode scanners, thermal receipt printers (ESC/POS), cash drawers, and A4 reporting printers.
+* Strict inventory tracking by product batch, lot number, and expiration date using FEFO (First Expired, First Out) as the mandatory default batch-selection policy.
+
+The server is the authoritative source for sales, stock quantities, pricing rules, permissions, and financial transactions. Cloud access or external APIs must not be mandatory for ordinary local sales.
+
+3. Technology Stack
+Use the following stack unless an existing repository requires a documented, justified adjustment:
+
+* Desktop: Electron, React, TypeScript (strict mode), Vite, Electron Forge (or a well-maintained packaging solution), with secure Electron main/preload/renderer process isolation (context isolation enabled, Node integration disabled in renderer).
+* Backend: Node.js LTS, Express/FastAPI-equivalent REST API with OpenAPI/Swagger documentation, WebSocket notifications for real-time alerts, and robust server-side validation and authorization.
+* Database: PostgreSQL managed via Prisma ORM, version-controlled schema migrations, transaction-safe operations, and strict foreign keys/indexes.
+* Monorepo Management: pnpm workspaces with shared TypeScript and validation packages.
+* Frontend: Tailwind CSS, shadcn/ui accessible components, TanStack Query, Zustand, React Hook Form, Zod schemas, and optimized high-performance data grids for large inventory datasets.
+* Testing: Vitest / Jest, React Testing Library, NodeJS integration tests, Playwright (or E2E Electron testing setup), and isolated hardware adapter mocks.
+
+Follow a modular monolith approach for the backend, maintaining strict separation between domain logic, services, persistence, and infrastructure adapters.
+
+5. Authentication, Roles & Authorization
+* Secure password hashing using Argon2id.
+* Role-based access control with predefined roles: Owner, Manager, Pharmacist, Cashier, Inventory Clerk, and Accountant.
+* Fine-grained permissions for viewing, creating, editing, deleting, refunding, discounting, adjusting inventory, opening the cash drawer, viewing cost data, and accessing financial reports.
+* Failed-login throttling, session management, and comprehensive audit logging.
+* Mandatory server-side authorization enforcement for every protected API/IPC operation.
+
+6. Core Functional Modules
+
+A. Dashboard & Real-Time Analytics
+* Live tracking of today's sales, invoice counts, gross/net sales, purchase totals, and estimated profits using documented costing methods.
+* Low-stock warnings, near-expiry and expired batch alerts, and current cashier shift statuses derived entirely from real database queries.
+
+B. Product & Medicine Catalog
+* Comprehensive fields: Internal ID, SKU, Arabic/English name, brand, manufacturer, category, active ingredient, primary/alternate barcodes, dosage form, strength, pack size, purchase cost, sale price, tax attributes, minimum stock threshold, supplier links, and prescription/controlled status.
+* Support for bulk price updates, CSV/XLSX imports/exports, and fast keyboard-driven searches.
+
+C. Barcode Management & Label Generation
+* Support for USB HID keyboard-wedge barcode scanners with configurable suffixes.
+* Generation of internal barcodes/labels (EAN-13 / Code 128) with customizable layouts, preview capabilities, and check-digit validation.
+
+D. Point of Sale (POS) & Checkout
+* Fast, keyboard-first checkout screen optimized for speed (e.g., shortcuts for barcode scanning, quantity edits, payment completion, and cart suspension/retrieval).
+* Support for split payments (cash, cards, local methods), automatic change calculation, discounts, and customer associations.
+* Atomicity & Concurrency: Guaranteed database transactions with idempotency keys and stock locking to prevent overselling or duplicate invoice generation during peak hours. Recoverable checkout state following temporary network glitches.
+
+E. Inventory, Batches & Warehouses
+* Multi-warehouse support with granular tracking by product, warehouse, lot/batch number, manufacturing date, and expiration date.
+* FEFO enforcement: Automatic selection of the earliest expiring batch during sales and dispensing.
+* Full audit trail for stock receipts, adjustments, transfers, counts, and supplier/customer returns.
+
+F. Purchasing & Supplier Management
+* Supplier directory, purchase orders, purchase invoices, partial receiving, batch/cost entry, supplier balances, credit notes, and outstanding payable reports.
+
+G. Cash Register & Shift Management
+* Shift opening/closing with initial cash balances, cash sales, refunds, paid-ins, paid-outs, expected vs. actual cash counts, variance tracking, and manager approvals.
+
+H. Hardware Integration Adapters
+* Barcode Scanners: USB HID wedge integration with proper suffix/timing handling.
+* Receipt Printers: ESC/POS-compatible thermal printer support (USB, network, or shared Windows printers) with Arabic RTL formatting, logo inclusion, and QR/barcode generation.
+* Cash Drawers: Drawer-kick interface control linked to thermal printers or direct triggers, governed by strict permissions and fully audited.
+* A4 Printers: Report and purchase document printing via system dialog workflows.
+* Device Management: Settings page with connection status indicators, diagnostic buttons, and simulation mocks clearly labeled for development/testing.
+
+I. Reports, Expenses, Settings & Backup
+* Comprehensive reports (sales, profit, inventory valuation, expired stock, cashier shifts, audit logs) with Excel/CSV export and printable layouts.
+* Controlled expense tracking separate from core operational purchases.
+* Robust database backup and recovery workflows with versioned metadata and file integrity checks.
+
+7. Security & Performance
+* Strict isolation of Electron IPC channels; never expose shell, fs, or raw Node APIs to the renderer.
+* Parameterized queries via Prisma to prevent injection attacks.
+* Precise financial calculations using PostgreSQL NUMERIC types to avoid floating-point rounding errors.
+* Optimized database indexes on barcodes, SKUs, product names, batch expiration dates, and invoice timestamps.
+
+8. Testing & Acceptance Criteria
+* Mandatory unit, integration, and concurrency tests (including explicit concurrent checkout tests proving that simultaneous sales cannot oversell limited stock).
+* Separate simulation mocks from real-hardware verification tests.
+
+9. Development Workflow & Phased Implementation
+* Phase 1: Repository inspection, setup of architecture/database documentation, and implementation plan creation.
+* Phase 2: Monorepo scaffolding, linting, formatting, and CI setup.
+* Phase 3: PostgreSQL schema, Prisma migrations, seed scripts, auth, users, and roles.
+* Phase 4: Product catalog, categories, suppliers, batches, and inventory movements.
+* Phase 5: Purchasing and stock receiving workflows.
+* Phase 6: POS interface, atomic checkout, payment splits, receipts, and cash register shifts.
+* Phase 7: Hardware adapters, diagnostics, and hardware integration tests.
+* Phase 8: Financial reports, expenses, audit logs, settings, and backup/restore.
+* Phase 9: Desktop packaging (Electron Forge), server setup, multi-terminal deployment guides, and upgrade procedures.
+* Phase 10: Comprehensive testing, linting fixes, and final production builds.
+
+10. Required First Deliverable
+1. Inspect the existing repository and verify the active development environment.
+2. Implement the First Working Vertical Slice:
+   * Application shell with Arabic RTL layout and navigation.
+   * Secure Electron main/preload/renderer configuration.
+   * NodeJS backend server featuring a health check endpoint.
+   * PostgreSQL connection setup with initial Prisma migrations and secure seed data.
+   * Complete Product CRUD module with real database persistence.
+   * Fast product search capabilities by name, SKU, and barcode.
+   * Basic inventory tracking screen.
+   * Automated tests covering these foundational flows.
+
+Ensure the code compiles successfully and the first vertical slice runs smoothly in a local development environment before expanding into subsequent modules.

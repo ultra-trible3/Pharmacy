@@ -1,0 +1,34 @@
+# ---------------------------------------------------------------------------
+# Pharmacy API server — example configuration.
+# Copy to `.env` (which is gitignored) and adjust for your environment.
+# ---------------------------------------------------------------------------
+
+NODE_ENV=development
+
+# Bind to loopback for a single-machine install; use 0.0.0.0 only when the
+# pharmacy LAN terminals must reach this server directly.
+HOST=127.0.0.1
+PORT=4000
+
+# --- PostgreSQL ------------------------------------------------------------
+# The bundled dev database runs on port 55432 (see scripts/pg-dev.mjs) so it
+# never collides with a machine-wide PostgreSQL service on 5432.
+DATABASE_URL="postgresql://pharmacy_admin:CHANGE_ME@127.0.0.1:55432/pharmacy?schema=public"
+# Integration tests use a separate database so they can truncate freely.
+TEST_DATABASE_URL="postgresql://pharmacy_admin:CHANGE_ME@127.0.0.1:55432/pharmacy_test?schema=public"
+
+# --- Authentication ---------------------------------------------------------
+# MUST be replaced with a long random value in production (>= 32 chars).
+JWT_SECRET="change-me-to-a-long-random-string-at-least-32-chars"
+ACCESS_TOKEN_TTL_SECONDS=900
+REFRESH_TOKEN_TTL_SECONDS=43200
+MAX_LOGIN_ATTEMPTS=5
+LOGIN_LOCK_MINUTES=15
+
+# --- HTTP ------------------------------------------------------------------
+# Comma-separated list of allowed browser origins, or `*` for development.
+CORS_ORIGINS=*
+
+# --- Operations ------------------------------------------------------------
+LOG_LEVEL=info
+BUSINESS_TIMEZONE=Africa/Cairo
